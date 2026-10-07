@@ -1,4 +1,4 @@
-#EPP-P-REC-Calculator
+# EPP Spring & Summer Project: P-REC-Avoided Emissions-Calculator
 
 This is a web-based Peace Renewable Energy Credit (P-REC) avoided emissions Calculator.
 
