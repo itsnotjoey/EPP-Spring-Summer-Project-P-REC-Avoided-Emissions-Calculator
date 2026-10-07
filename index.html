@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P-REC Avoided Emissions Calculator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* delete the arrows in EF */
+    #projectEF::-webkit-inner-spin-button, #projectEF::-webkit-outer-spin-button,
+    #dieselEF::-webkit-inner-spin-button, #dieselEF::-webkit-outer-spin-button,
+    #gridEF::-webkit-inner-spin-button, #gridEF::-webkit-outer-spin-button,
+    #keroseneEF::-webkit-inner-spin-button, #keroseneEF::-webkit-outer-spin-button,
+    #candleEF::-webkit-inner-spin-button, #candleEF::-webkit-outer-spin-button,
+    #otherEF::-webkit-inner-spin-button, #otherEF::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    #projectEF, #dieselEF, #gridEF, #keroseneEF, #candleEF, #otherEF {
+      -moz-appearance: textfield;
+    }
+  /* =========================
+       NEW: Print Report Styling
+    ========================= */
+    @media print {
+      /* 1. Double-column grid to a single-column */
+      .lg\:grid-cols-2 {
+        display: block !important;
+      }
+
+      /* 2. Add spacing between the left and right sections */
+      section {
+        margin-bottom: 2.5rem !important;
+        page-break-inside: avoid;
+      }
+
+      /* 3. Remove the borders and backgrounds of all input boxes */
+      input, select {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        font-weight: 700 !important;
+        color: #1e40af !important; 
+      }
+
+      /* 4. Hide the grayish small text prompts below the input boxes */
+      p.text-xs.text-gray-500 {
+        display: none !important;
+      }
+
+      /* 5. Ensure that the three result cards of OER will not be cut off across pages */
+      #oerMoneyResultsContainer .grid > div, 
+      .bg-white.p-4.rounded {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      /* 6. Resolve the issue where the "Buyer Results" title is isolated on the first page */
+      h2, h3 {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      /* 7. Resolve the issues of Policy Update and data grid on separate pages */
+      .border-amber-500, 
+      .space-y-8,
+      .space-y-4,
+      details {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-white-50 text-gray-900 font-sans">
+
+<!-- =========================
+     HEADER
+======================== -->
+  <header class="bg-white py-12 px-6 md:px-12 border-b border-gray-200">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-8">
+      
+      <img src="https://images.squarespace-cdn.com/content/v1/5cc327c55acb9b00019d816a/1556293628038-RVEZR0CZ5OK185WVQ7BN/Energy_Peace_Partners_Logo_FinalX_Black_56fc689f-ee6c-405c-b90b-9049cd671979_x150.png" 
+           alt="Energy Peace Partners" 
+           class="h-16 md:h-20 mt-1" />
+      
+      <div class="text-center md:text-left">
+        <h1 class="text-3xl md:text-4xl font-serif text-brand-800 not-italic mb-2">
+          P-REC Avoided Emissions Calculator
+        </h1>
+        <p class="text-lg font-sans text-gray-500 not-italic">
+          Estimated climate benefits from P-REC procurement.
+        </p>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 md:px-12 py-10">
+<div class="mb-6 flex justify-end print:hidden">
+  <button
+    onclick="window.print()"
+    class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md py-2 px-4 text-sm font-medium flex items-center gap-2 transition-colors"
+  >
+    <span>Print / Save as PDF</span>
+  </button>
+</div>
+    <!-- =========================
+     NEW: TAB NAVIGATION
+========================= -->
+<div class="border-b border-gray-200 mb-8 print:hidden">
+  <nav class="-mb-px flex w-full overflow-x-auto" aria-label="Tabs">
+    <button id="btn-tab1" onclick="switchTab('tab1')" class="flex-1 text-center border-brand-800 text-brand-800 whitespace-nowrap py-4 px-1 border-b-2 font-bold text-lg font-serif transition-colors">
+      Standard Calculator
+    </button>
+    <button id="btn-tab3" onclick="switchTab('tab3')" class="flex-1 text-center border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg font-serif transition-colors">
+      SBTi OER Targets
+    </button>
+    <button id="btn-methodology" onclick="switchTab('methodology')" class="flex-1 text-center border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg font-serif transition-colors">
+      Methodology Guide
+    </button>
+    <button id="btn-guide" onclick="switchTab('guide')" class="flex-1 text-center border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg font-serif transition-colors">
+      Claims & Reporting Guide
+    </button>
+  </nav>
+</div>
+    <div id="methodology-view" style="display: none;" class="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-gray-200 mb-10 text-gray-700 leading-relaxed not-italic">
+      <h2 class="text-3xl font-serif font-bold text-brand-800 mb-6 border-b pb-4 not-italic">P-REC Avoided Emissions Calculator: Methodology Guide</h2>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-6 mb-3">1. Overview</h3>
+      <p class="mb-4">The P-REC Avoided Emissions Calculator is designed to bridge the gap between renewable energy procurement and verifiable, physical climate impact. Unlike standard unbundled RECs, which often apply to already-decarbonized grids, Peace Renewable Energy Credits (P-RECs) are deployed in fragile, energy-poor, and off-grid settings.</p>
+      <p class="mb-4">This tool provides a transparent, data-driven estimate of the avoided emissions generated by displacing highly polluting fuels (e.g. diesel and kerosene) with new renewable energy capacity. It also models procurement targets for companies adopting the SBTi Ongoing Emissions Responsibility (OER) framework.</p>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-8 mb-3">2. Part I: Calculating Avoided Emissions</h3>
+      <p class="mb-4">This calculator determines the climate impact of a P-REC purchase through three steps.</p>
+      
+      <h4 class="font-bold text-gray-800 mt-4 mb-2">Step A: Establishing the Off-Grid Baseline</h4>
+      <p class="mb-2">In the regions where P-RECs operate, the alternative to renewable energy is not a centralized utility grid, but a mix of highly polluting localized fuels. The calculator uses a default baseline mix informed by World Bank off-grid energy data (e.g., the ADELE project):</p>
+      <ul class="list-disc pl-6 mb-4 space-y-1">
+        <li><strong>Diesel Generators:</strong> 70% share (Emission Factor: 0.900 tCO2e/MWh)</li>
+        <li><strong>Kerosene:</strong> 21% share (Emission Factor: 0.150 tCO2e/MWh)</li>
+        <li><strong>Candles / Wax:</strong> 9% share (Emission Factor: 0.245 tCO2e/MWh)</li>
+      </ul>
+      <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-4 font-mono text-sm text-gray-800">
+        Formula: Baseline Emission Factor = Weighted average of the selected fuel emission factors
+      </div>
+
+      <h4 class="font-bold text-gray-800 mt-4 mb-2">Step B: Applying Conservative Discount Factors</h4>
+      <p class="mb-2">To ensure impact claims are not overstated, the calculator applies two adjustable discounting parameters to the total MWh purchased:</p>
+      <ul class="list-disc pl-6 mb-4 space-y-1">
+        <li><strong>Displacement (%):</strong> The estimated percentage of the newly generated renewable electricity that displaces the baseline fossil fuels, rather than just meeting new latent demand.</li>
+        <li><strong>Delivery Confidence (%):</strong> A conservative buffer to account for potential project downtime, curtailment, or transmission inefficiencies.</li>
+      </ul>
+
+      <h4 class="font-bold text-gray-800 mt-4 mb-2">Step C: Determining Final Climate Impact</h4>
+      <p class="mb-2">The final avoided emissions are calculated by taking the effective volume of renewable energy and multiplying it by the net emissions avoided per MWh.</p>
+      <div class="bg-gray-50 p-3 rounded border border-gray-200 mb-2 font-mono text-sm text-gray-800">
+        Total Avoided Emissions (tCO2e) = [Purchased P-RECs &times; Displacement % &times; Delivery %] &times; [Baseline Emission Factor - Project Emission Factor]
+      </div>
+      <p class="text-sm text-gray-500 not-italic mb-4">Note: The Project Emission Factor for new solar/wind/hydro generation is typically 0.</p>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-8 mb-3">3. Part II: SBTi OER Procurement Navigator</h3>
+      <p class="mb-4">The Science Based Targets initiative (SBTi) introduced the Ongoing Emissions Responsibility (OER) framework in the June 2026 update of the Corporate Net-Zero Standard. This framework encourages companies to take financial responsibility for their remaining emissions on the path to net-zero.</p>
+      <p class="mb-4">Based on SBTi’s recommended <strong>Contribution Budget (Money-for-Ton)</strong> pathway, our tool models procurement targets by applying an internal carbon price to the ongoing emissions footprint. This budget is then deployed to finance high-impact physical mitigation via P-RECs.</p>
+
+      <h4 class="font-bold text-gray-800 mt-4 mb-2">The OER Tiers</h4>
+      <ul class="list-disc pl-6 mb-4 space-y-1">
+        <li><strong>1% Recognized:</strong> The company physically neutralizes an amount equal to at least 1% of its annual Scope 1–3 emissions.</li>
+        <li><strong>10% Scale-up:</strong> A proactive target demonstrating linear progress toward full responsibility.</li>
+        <li><strong>40% Leadership:</strong> The company neutralizes a strict physical floor equivalent to 40% of its ongoing emissions, backed by a full internal carbon pricing budget.</li>
+      </ul>
+
+      <h4 class="font-bold text-gray-800 mt-4 mb-2">The Calculation Logic</h4>
+      <ol class="list-decimal pl-6 mb-4 space-y-2">
+        <li><strong>Determine the amount of emissions:</strong><br><span class="font-mono text-sm text-gray-800">Emissions Target (tCO2e) = Corporate Total Emissions &times; OER Tier Percentage</span></li>
+        <li><strong>Calculate the budget:</strong><br><span class="font-mono text-sm text-gray-800">Contribution Budget ($) = Emissions Target (tCO2e) &times; Internal Carbon Price ($/tCO2e)</span></li>
+        <li><strong>Translate to P-REC Procurement:</strong><br><span class="font-mono text-sm text-gray-800">Amount of P-RECs Procured (MWh) = Contribution Budget ($) &divide; P-REC Price ($/MWh)</span></li>
+      </ol>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-8 mb-3">4. Data Sources </h3>
+      <p class="mb-2">All baseline assumptions and calculations are derived from leading public frameworks:</p>
+      <ul class="list-disc pl-6 mb-4 space-y-1">
+        <li><strong>Emission Factors:</strong> Sourced from the EPA GHG Emission Factors Hub for stationary combustion and off-grid lighting fuels.</li>
+        <li><strong>Baseline Assumptions:</strong> Informed by energy access diagnostics from the World Bank (e.g., Ethiopia ADELE Project).</li>
+        <li><strong>Policy Alignment:</strong> Modeled against the SBTi Ongoing Emissions Responsibility (OER) framework published in June 2026.</li>
+      </ul>
+      
+      <div class="mt-8 pt-4 border-t border-gray-200">
+        <p class="text-sm text-gray-500 not-italic">
+          Disclaimer: P-RECs are energy attribute certificates (EACs), not traditional carbon offsets. Under the SBTi Beyond Value Chain Mitigation (BVCM) guidelines, the physical emissions avoided by deploying P-RECs can be classified and reported as high-quality <strong>Verified Mitigation Outcomes (VMOs)</strong>.
+        </p>
+      </div>
+    </div>
+    <div id="claims-guide-view" style="display: none;" class="bg-white p-8 md:p-10 rounded-xl shadow-sm border border-gray-200 mb-10 text-gray-700 leading-relaxed not-italic">
+      <h2 class="text-3xl font-serif font-bold text-brand-800 mb-4 border-b pb-4 not-italic">P-REC Claims &amp; Reporting Guide</h2>
+
+      <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r">
+        <p class="text-sm text-amber-900 not-italic">
+          <strong>Disclaimer:</strong> The P-REC Avoided Emissions Calculator is a decision-support tool designed to provide estimates for procurement planning and budgeting. The figures generated are estimates and are not intended to serve as official, audited corporate GHG reporting data.
+        </p>
+      </div>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-6 mb-3">1. Introduction: P-RECs and the SBTi "Money-for-Ton" Approach</h3>
+      <p class="mb-4">Under the Science Based Targets initiative (SBTi) Corporate Net-Zero Standard, the Ongoing Emissions Responsibility (OER) framework encourages companies to take financial responsibility for their unabated emissions on the path to net-zero.</p>
+      <p class="mb-4">SBTi  recommends the "Money-for-Ton" (Contribution Budget) approach for Peace Renewable Energy Credits (P-RECs). Instead of attempting a 1:1 physical carbon offset, this approach asks companies to establish an internal carbon price, create a dedicated budget, and deploy that capital toward high-impact climate actions. P-RECs are highly aligned with this financial pathway.</p>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-8 mb-3">2. Why P-RECs Align with the Contribution Budget</h3>
+      <p class="mb-3">By deploying an OER contribution budget into P-RECs, companies go beyond standard carbon accounting to deliver systemic climate impacts. P-RECs directly support:</p>
+      <ul class="list-disc pl-6 mb-6 space-y-2">
+        <li><strong>Action Outside the Value Chain:</strong> Channeling vital climate finance to high-impact renewable projects in fragile states.</li>
+        <li><strong>Loss-and-Damage &amp; Climate Justice:</strong> Compensating for climate impacts by targeting vulnerable regions historically excluded from green finance.</li>
+        <li><strong>Adaptation &amp; Resilience Outcomes:</strong> Replacing polluting generators with distributed renewables (e.g., solar mini-grids) to power hospitals, schools, and local economies.</li>
+        <li><strong>Funding Innovation:</strong> Providing the critical revenue stream needed to de-risk and unlock early-stage clean energy solutions in frontier markets.</li>
+      </ul>
+
+      <h3 class="text-xl font-bold text-gray-900 mt-8 mb-3">3. Suggested Template Guide for P-REC Procurement</h3>
+      <p class="text-sm text-gray-500 mb-4 not-italic">This template illustrates how buyers could communicate their P-REC procurement and OER strategy in their reports and and public claims.</p>
+      
+      <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg text-gray-800 leading-relaxed font-sans shadow-inner">
+        <p class="mb-4">
+          "In alignment with the SBTi Ongoing Emissions Responsibility (OER) framework, <strong>[Company Name]</strong> established an internal carbon price to account for our unabated emissions, generating a dedicated contribution budget. We deployed this budget to procure <strong>[X] MWh</strong> of Peace Renewable Energy Credits (P-RECs).
+        </p>
+        <p>
+          This financial contribution directly supported the deployment of new renewable mini-grids in <strong>[Country/Region]</strong>, expanding energy access and helping avoid emissions from off-grid fossil fuel energy sources. Beyond advancing global climate justice and community resilience, this procurement generated an estimated <strong>[Y] tCO2e</strong> of avoided emissions, supporting our Beyond Value Chain Mitigation (BVCM) goals."
+        </p>
+      </div>
+    </div>
+    <div id="calculator-view" class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+
+<!-- =========================
+     Left Column: Inputs
+========================= -->
+      <section>
+        <div id="tab1-left">
+        <h2 class="text-3xl font-serif font-bold mb-6 text-brand-800 not-italic">1. Project &amp; Buyer Inputs</h2>
+        <div class="space-y-5">
+
+          <!-- Input Mode Toggle -->
+     <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+      Input Mode
+      </label>
+     <select id="inputMode" class="w-full border rounded-md px-3 py-2">
+      <option value="budget">Use Budget ($)</option>
+      <option value="quantity">Use P-RECs Purchased (MWh)</option>
+      </select>
+      </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">P-REC Price ($/MWh)</label>
+              <select id="price" class="w-full rounded-md border border-gray-300 px-3 py-2 bg-white">
+                <option value="45">$45 (Standard P-RECs)</option>
+                <option value="35" selected>$35 (PAF P-RECs)</option>
+              </select>
+            </div>
+            <div id="budgetBlock">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Buyer Budget ($)</label>
+              <input id="budget" type="number" value="100000" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+            </div>
+            <div id="quantityBlock" style="display:none;">
+              <label class="block text-sm font-medium text-gray-700 mb-1">P-RECs Purchased (MWh)</label>
+              <input id="manualQuantity" type="number" value="2000" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+            </div>
+          </div>
+
+          <div class="pt-2 border-t-2 border-gray-100">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Project Emission Factor (tCO2e/MWh)
+            </label>
+            <input type="text" 
+              value="0"
+              disabled
+              class="w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100 text-gray-700 cursor-not-allowed"/>
+            <input type="hidden" id="projectEF" value="0" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Displace %</label>
+              <input id="displace" type="number" value="100" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+              <p class="text-xs text-gray-500 mt-1">Share of delivered renewable electricity assumed to displace the baseline source.</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Confidence %</label>
+              <input id="consFactor" type="number" value="100" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+              <p class="text-xs text-gray-500 mt-1">Confidence level that project delivers expected avoided emissions impact.</p>
+            </div>
+          </div>
+        </div>
+
+<h2 class="text-3xl font-serif font-bold mt-12 mb-2 text-brand-800 not-italic">2. Existing Off-Grid Baseline Mix (%)</h2>
+        <p class="text-sm text-gray-500 italic mb-6">* Note: Note: "EF" stands for Emissions Factor (tCO2e/MWh). Please note that Emission Factors (EF) vary by country and region. Using location-specific data will provide a more accurate estimation.</p>
+
+        <div class="space-y-4">
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] items-center gap-4">
+    <label class="font-medium text-gray-800">Diesel Generator</label>
+    <div class="relative">
+      <input id="dieselShare" type="number" value="70" class="w-full rounded-md border border-gray-300 px-3 py-2 pr-8" />
+      <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-500">EF:</span>
+      <input id="dieselEF" type="number" step="0.001" value="1.2" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] items-center gap-4">
+    <label class="font-medium text-gray-800">Kerosene</label>
+    <div class="relative">
+      <input id="keroseneShare" type="number" value="21" class="w-full rounded-md border border-gray-300 px-3 py-2 pr-8" />
+      <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-500">EF:</span>
+      <input id="keroseneEF" type="number" step="0.001" value="0.15" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] items-center gap-4">
+    <label class="font-medium text-gray-800">Candle / Wax</label>
+    <div class="relative">
+      <input id="candleShare" type="number" value="9" class="w-full rounded-md border border-gray-300 px-3 py-2 pr-8" />
+      <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-500">EF:</span>
+      <input id="candleEF" type="number" step="0.001" value="0.245" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] items-center gap-4">
+    <label class="font-medium text-gray-800">Other</label>
+    <div class="relative">
+      <input id="otherShare" type="number" value="0" class="w-full rounded-md border border-gray-300 px-3 py-2 pr-8" />
+      <span class="absolute right-3 top-2.5 text-gray-500 text-sm">%</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-500">EF:</span>
+      <input id="otherEF" type="number" step="0.001" value="0" class="w-full rounded-md border border-gray-300 px-3 py-2" />
+    </div>
+  </div>
+</div>
+
+        <div id="baselineTotalBox"
+          class="mt-6 rounded-lg bg-green-100 text-green-800 px-4 py-4 text-center font-semibold text-xl">
+          Total Baseline Share: 100.0%
+        </div>
+        </div>
+
+        <!-- 👇 Tab 3's cover (hidden by default) -->
+        <div id="tab3-left" style="display: none;">
+          <h2 class="text-3xl font-serif font-bold mb-6 border-l-4 border-gray-300 pl-4 text-brand-800 not-italic leading-tight">
+  Contribution Budget<br>
+  <span class="text-2xl text-gray-500 mt-1 inline-block">(Money-for-ton)</span>
+</h2>
+          
+          <div class="bg-indigo-50 border border-indigo-200 p-5 rounded-lg">
+            <div class="mb-5 bg-white p-4 rounded text-sm text-gray-700 shadow-sm border border-gray-100">
+              <span class="font-bold block mb-2 text-gray-900">What is the SBTi OER Framework?</span>
+              <p class="mb-2">Science Based Targets Initiative (SBTi) introduced the Ongoing Emissions Responsibility (OER) in the new version of the Corporate Net-Zero Standard released in June 2026. The OER framework encourages companies to take responsibility for remaining emissions on their path to net-zero.</p>
+              <ul class="list-disc pl-5 space-y-1 text-gray-600 mb-4">
+                <li><strong class="text-gray-800">1% Recognized:</strong> Entry level. Neutralize 1% of ongoing emissions.</li>
+                <li><strong class="text-gray-800">10% Scale-up:</strong> Proactive interim milestone to demonstrate continuous progress.</li>
+                <li><strong class="text-gray-800">40% Leadership:</strong> The highest standard.</li>
+              </ul>
+              <hr class="my-3 border-gray-100" />
+              <span class="font-bold block mb-2 text-gray-900">SBTi's Recommended Pathway for EACs ("Money-for-ton")</span>
+              <p class="mb-2">Under the "Contribution Budget" approach, companies establish an internal carbon price and deploy the resulting budget toward high-impact climate actions like P-RECs.</p>
+              <div class="bg-gray-50 p-2 rounded border border-gray-200 mb-1 text-xs font-mono text-gray-700">
+                1. Target = Corporate Emissions &times; Tier %<br>
+                2. Budget = Target &times; Internal Carbon Price<br>
+                3. P-RECs = &lfloor; Budget / P-REC Price &rfloor;
+              </div>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-bold text-gray-900 mb-1">Corporate Scope 1-3 Annual Emissions (tCO2e)</label>
+                <input id="corpEmissionsMoney" type="number" value="1000000" class="w-full md:w-2/3 rounded-md border border-gray-300 px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-sm font-bold text-gray-900 mb-1">Internal Carbon Price ($/tCO2e)</label>
+                <p class="text-xs text-gray-500 mb-2">SBTi recommends a minimum of $20/tCO2e for Scale-up.</p>
+                <input id="internalCarbonPrice" type="number" value="20" class="w-full md:w-2/3 rounded-md border border-gray-300 px-3 py-2" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+ <!-- =========================
+     Right Column：results
+========================= -->
+      <section>
+        <div id="tab1-results">
+        <h2 class="text-3xl font-serif font-bold mb-8 border-l-4 border-gray-300 pl-4 text-brand-800 not-italic">
+  Buyer Results (Impact Summary)
+</h2>
+
+<div class="space-y-8 mb-8">
+  <!-- Row 1 -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div>
+      <div class="text-sm text-gray-500 mb-2">P-RECs Purchased</div>
+      <div id="pRecsPurchased" class="text-4xl font-bold leading-tight text-gray-900">2,222</div>
+    </div>
+
+    <div>
+      <div class="text-sm text-gray-500 mb-2">Total Avoided Emissions</div>
+      <div id="avoidedEmissions" class="text-4xl font-bold leading-tight text-green-600">1,215.2 tCO2e</div>
+    </div>
+
+    <div>
+      <div class="text-sm text-gray-500 mb-2">Cost per tCO2e Avoided</div>
+      <div id="costPerTon" class="text-4xl font-bold leading-tight text-gray-900">$82.29</div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+      <div class="text-sm text-gray-500 mb-2">Avoided Emissions per P-REC</div>
+      <div id="avoidedPerPRec" class="text-3xl font-bold leading-tight text-gray-900">0 tCO2e/MWh</div>
+    </div>
+
+    <div>
+      <div class="text-sm text-gray-500 mb-2">Avoided Emissions per $1,000 Spent</div>
+      <div id="avoidedPerDollar" class="text-3xl font-bold leading-tight text-gray-900">0 tCO2e</div>
+    </div>
+  </div>
+</div>
+</div>
+
+        
+        <!-- 👇 result panel of Tab 3 (hidden by default) -->
+        <div id="oerMoneyResultsContainer" style="display: none;" class="mb-8">
+          <h3 class="text-2xl font-serif font-bold text-indigo-900 mb-2 not-italic">SBTi Contribution Budget Targets</h3>
+          <p class="text-sm text-gray-600 mb-5">Calculated using the "Money-for-ton" financial pathway.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- 1% Tier -->
+            <div class="bg-white p-5 rounded-lg shadow border-t-4 border-gray-400">
+              <div class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Recognized (1%)</div>
+              <div class="text-lg font-bold text-gray-900 mb-1" id="oerMoney1Budget">$0 Budget</div>
+              <div class="text-sm font-medium text-indigo-600" id="oerMoney1Qty">0 P-RECs</div>
+              <div class="text-xs text-green-600 mt-2" id="oerMoney1Avoided">~0 tCO2e Avoided</div>
+            </div>
+
+            <!-- 10% Tier -->
+            <div class="bg-white p-5 rounded-lg shadow border-t-4 border-indigo-400">
+              <div class="text-xs font-bold text-indigo-500 uppercase tracking-wide mb-1">Scale-up (10%)</div>
+              <div class="text-lg font-bold text-gray-900 mb-1" id="oerMoney10Budget">$0 Budget</div>
+              <div class="text-sm font-medium text-indigo-600" id="oerMoney10Qty">0 P-RECs</div>
+              <div class="text-xs text-green-600 mt-2" id="oerMoney10Avoided">~0 tCO2e Avoided</div>
+            </div>
+
+            <!-- 40% Tier -->
+            <div class="bg-white p-5 rounded-lg shadow border-t-4 border-amber-400">
+              <div class="text-xs font-bold text-amber-500 uppercase tracking-wide mb-1">Leadership (40%)</div>
+              <div class="text-lg font-bold text-gray-900 mb-1" id="oerMoney40Budget">$0 Budget</div>
+              <div class="text-sm font-medium text-indigo-600" id="oerMoney40Qty">0 P-RECs</div>
+              <div class="text-xs text-green-600 mt-2" id="oerMoney40Avoided">~0 tCO2e Avoided</div>
+            </div>
+          </div>
+        </div>
+        <div id="policy-note" class="border border-amber-500 bg-transparent px-5 py-5 text-amber-900 mb-8">
+          <p class="text-lg leading-relaxed">
+            <span class="font-bold">Methodological Note:</span>
+            P-RECs are energy attribute certificates, not carbon offsets.
+            Avoided emissions should be reported separately from Scope 2 market-based emissions
+            and disclosed with baseline assumptions.
+            <br><br>
+    <span class="font-bold text-brand-800">Standards Update-Related Opportunity:</span>  
+    Under emerging standards (e.g., SBTi, GHGP), this quantified physical avoided emissions value may soon be eligible to support corporate <span class="font-bold">Scope 3 targets</span> and <span class="font-bold">Ongoing Emission Responsibility (OER)</span> leadership claims. 
+          </p>
+        </div>
+
+        <!-- 🌟 Tab 1 Assumptions & Calculation Details (SBTi OER removed) -->
+        <details id="assumptions-note-tab1" class="border border-gray-300 bg-transparent px-5 py-4 shadow-sm mb-4">
+          <summary class="cursor-pointer text-lg font-bold text-brand-800 not-italic font-serif">
+            Assumptions &amp; Calculation Details
+          </summary>
+          <div class="mt-4 text-sm text-gray-600 space-y-3 leading-6 font-sans">
+            <p>This tool applies a simplified buyer-side avoided emissions methodology using user-entered baseline shares, baseline emission factors, delivery assumptions, displacement assumptions, and a conservative adjustment factor.</p>
+            <p>Baseline emissions are estimated as a weighted average of the selected existing off-grid energy sources.</p>
+            <p>Estimated avoided emissions = P-RECs Purchased &times; Delivery Factor &times; Displacement Factor &times; Conservative Factor &times; (Baseline Emission Factor &minus; Project Emission Factor)</p>
+            <p>Results are indicative only and should be disclosed together with the assumptions used.</p>
+          </div>
+        </details>
+
+        <!-- 🌟 Tab 1 Data Sources & References -->
+        <details id="data-sources-tab1" class="border border-gray-300 bg-transparent px-5 py-4 shadow-sm">
+          <summary class="cursor-pointer text-lg font-bold text-brand-800 not-italic font-serif">
+            Data Sources &amp; References
+          </summary>
+          <div class="mt-4 text-sm text-gray-600 space-y-3 leading-6 font-sans">
+            <ul class="list-disc pl-5 space-y-2">
+              <li>
+                <span class="font-semibold">Baseline Assumptions:</span> The 100% diesel baseline (and related off-grid energy assumptions) is informed by the 
+                <a href="https://documents1.worldbank.org/curated/en/167861617328904373/pdf/Ethiopia-Access-to-Distributed-Electricity-and-Lighting-in-Ethiopia-ADELE-Project.pdf" target="_blank" class="text-brand-600 hover:text-brand-800 underline transition-colors">
+                  World Bank ADELE Project document
+                </a>.
+              </li>
+              <li>
+                <span class="font-semibold">Emission Factors:</span> Values for generator fuels (diesel), kerosene, and candle/paraffin are sourced from the 
+                <a href="https://www.epa.gov/climateleadership/ghg-emission-factors-hub" target="_blank" class="text-brand-600 hover:text-brand-800 underline transition-colors">
+                  EPA GHG Emission Factors Hub
+                </a>.
+              </li>
+            </ul>
+          </div>
+        </details>
+
+        <!-- 🌟 Tab 3 Data Sources & References -->
+        <details id="assumptions-note-tab3" class="border border-gray-300 bg-transparent px-5 py-4 shadow-sm" style="display: none;">
+          <summary class="cursor-pointer text-lg font-bold text-brand-800 not-italic font-serif">
+            Data Sources &amp; References
+          </summary>
+          <div class="mt-4 text-sm text-gray-600 space-y-3 leading-6 font-sans">
+            <ul class="list-disc pl-5 space-y-2">
+              <li>
+                <span class="font-semibold">Ongoing Emissions Responsibility (OER) framework</span> is sourced from the 
+                <a href="https://files.sciencebasedtargets.org/production/files/Ongoing-emissions-responsibility-A-framework-for-credible-and-competitive-climate-action.pdf" target="_blank" class="text-brand-600 hover:text-brand-800 underline transition-colors">
+                  SBTi OER document
+                </a>.
+              </li>
+            </ul>
+          </div>
+        </details>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    function formatNumber(value, decimals = 0) {
+      return Number(value).toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      });
+    }
+
+    function calculate() {
+  const budget = parseFloat(document.getElementById("budget").value) || 0;
+  const price = parseFloat(document.getElementById("price").value) || 0;
+  const projectEF = parseFloat(document.getElementById("projectEF").value) || 0;
+
+  const delivery = 1;
+  const displace = (parseFloat(document.getElementById("displace").value) || 0) / 100;
+  const consFactor = (parseFloat(document.getElementById("consFactor").value) || 0) / 100;
+
+// 1. Extract all Shares (Grid removed)
+  const dieselShare = parseFloat(document.getElementById("dieselShare").value) || 0;
+  const keroseneShare = parseFloat(document.getElementById("keroseneShare").value) || 0;
+  const candleShare = parseFloat(document.getElementById("candleShare").value) || 0;
+  const otherShare = parseFloat(document.getElementById("otherShare").value) || 0;
+
+  // 2. Extract all EFs (Grid removed)
+  const dieselEF = parseFloat(document.getElementById("dieselEF").value) || 0;
+  const keroseneEF = parseFloat(document.getElementById("keroseneEF").value) || 0;
+  const candleEF = parseFloat(document.getElementById("candleEF").value) || 0;
+  const otherEF = parseFloat(document.getElementById("otherEF").value) || 0;
+
+  // Total Share
+  const totalShare = dieselShare + keroseneShare + candleShare + otherShare;
+
+  document.getElementById("baselineTotalBox").textContent =
+    `Total Baseline Share: ${formatNumber(totalShare, 1)}%`;
+
+  const sharesValid = totalShare > 0;
+
+  // 3. Calculate the baseline using dynamically extracted EFs
+  const baselineEF = sharesValid
+    ? (
+        (dieselShare / totalShare) * dieselEF +
+        (keroseneShare / totalShare) * keroseneEF +
+        (candleShare / totalShare) * candleEF +
+        (otherShare / totalShare) * otherEF
+      )
+    : 0;
+
+  // 1. Determine P-RECs purchased based on Mode
+  let pRecsPurchased = 0;
+  const inputMode = document.getElementById("inputMode").value;
+
+  if (inputMode === "budget") {
+    pRecsPurchased = price > 0 ? (budget / price) : 0;
+  } else {
+    pRecsPurchased = parseFloat(document.getElementById("manualQuantity").value) || 0;
+  }
+
+  // 2. Core Math
+  const effectiveMWh = pRecsPurchased * delivery * displace * consFactor;
+  const avoidedPerMWh = Math.max(0, baselineEF - projectEF);
+  const totalAvoided = effectiveMWh * avoidedPerMWh;
+
+  // 3. Determine true total spend (Fixing the Point 5 bug)
+  const currentTotalCost = (inputMode === "budget") ? budget : (pRecsPurchased * price);
+
+  // 4. Calculate metrics using the dynamic cost
+  const costPerTon = totalAvoided > 0 ? currentTotalCost / totalAvoided : 0;
+  const perPRec = pRecsPurchased > 0 ? totalAvoided / pRecsPurchased : 0;
+  const perThousandDollars = currentTotalCost > 0 ? (totalAvoided / currentTotalCost) * 1000 : 0;
+
+  // 5. Update UI
+  document.getElementById("pRecsPurchased").textContent = formatNumber(pRecsPurchased, 0);
+  document.getElementById("avoidedEmissions").textContent = `${formatNumber(totalAvoided, 1)} tCO2e`;
+  document.getElementById("costPerTon").textContent = totalAvoided > 0 ? `$${formatNumber(costPerTon, 2)}` : "N/A";
+  document.getElementById("avoidedPerPRec").textContent = `${formatNumber(perPRec, 3)} tCO2e/MWh`;
+  document.getElementById("avoidedPerDollar").textContent = `${formatNumber(perThousandDollars, 3)} tCO2e`;
+  
+  
+  // 1 P-REC avoided emissions
+  const avoidedPerSinglePRec = 1 * delivery * displace * consFactor * avoidedPerMWh;
+      // Add: Tab 3 OER (Money-for-ton) Calculations
+  const corpEmissionsMoney = parseFloat(document.getElementById("corpEmissionsMoney").value) || 0;
+  const internalCarbonPrice = parseFloat(document.getElementById("internalCarbonPrice").value) || 0;
+  
+  if (avoidedPerSinglePRec > 0 && price > 0) {
+    // 1. Calculate Target Tonnage
+    const target1 = corpEmissionsMoney * 0.01;
+    const target10 = corpEmissionsMoney * 0.10;
+    const target40 = corpEmissionsMoney * 0.40;
+
+    // 2. Calculate Contribution Budget
+    const budget1 = target1 * internalCarbonPrice;
+    const budget10 = target10 * internalCarbonPrice;
+    const budget40 = target40 * internalCarbonPrice;
+
+    // 3. Translate to P-RECs (向下取整 Floor 以确保不超预算)
+    const pRecs1 = Math.floor(budget1 / price);
+    const pRecs10 = Math.floor(budget10 / price);
+    const pRecs40 = Math.floor(budget40 / price);
+
+    // Update UI for Tab 3
+    document.getElementById("oerMoney1Budget").textContent = "$" + formatNumber(budget1) + " Budget";
+    document.getElementById("oerMoney1Qty").textContent = formatNumber(pRecs1) + " P-RECs";
+    document.getElementById("oerMoney1Avoided").textContent = "~" + formatNumber(pRecs1 * avoidedPerSinglePRec, 1) + " tCO2e Avoided";
+
+    document.getElementById("oerMoney10Budget").textContent = "$" + formatNumber(budget10) + " Budget";
+    document.getElementById("oerMoney10Qty").textContent = formatNumber(pRecs10) + " P-RECs";
+    document.getElementById("oerMoney10Avoided").textContent = "~" + formatNumber(pRecs10 * avoidedPerSinglePRec, 1) + " tCO2e Avoided";
+
+    document.getElementById("oerMoney40Budget").textContent = "$" + formatNumber(budget40) + " Budget";
+    document.getElementById("oerMoney40Qty").textContent = formatNumber(pRecs40) + " P-RECs";
+    document.getElementById("oerMoney40Avoided").textContent = "~" + formatNumber(pRecs40 * avoidedPerSinglePRec, 1) + " tCO2e Avoided";
+  } else {
+    // Error fallback
+    ["oerMoney1Budget", "oerMoney10Budget", "oerMoney40Budget"].forEach(id => document.getElementById(id).textContent = "$0 Budget");
+    ["oerMoney1Qty", "oerMoney10Qty", "oerMoney40Qty"].forEach(id => document.getElementById(id).textContent = "N/A");
+    ["oerMoney1Avoided", "oerMoney10Avoided", "oerMoney40Avoided"].forEach(id => document.getElementById(id).textContent = "-");
+  }
+
+  // 6. Alert Box styling
+      const totalBox = document.getElementById("baselineTotalBox");
+      if (Math.abs(totalShare - 100) > 0.01) {
+        totalBox.className = "mt-6 rounded-lg bg-yellow-100 text-yellow-800 px-4 py-4 text-center font-semibold text-xl font-serif";
+      } else {
+        totalBox.className = "mt-6 rounded-lg bg-green-100 text-green-800 px-4 py-4 text-center font-semibold text-xl font-serif";
+      }
+}
+
+
+    const inputModeEl = document.getElementById("inputMode");
+    const budgetBlock = document.getElementById("budgetBlock");
+    const quantityBlock = document.getElementById("quantityBlock");
+    
+    // --- NEW: Tab Switching Logic ---
+    const calculatorView = document.getElementById("calculator-view");
+    const methodologyView = document.getElementById("methodology-view");
+    const claimsGuideView = document.getElementById("claims-guide-view");
+
+    const tab1Left = document.getElementById("tab1-left"); 
+    const tab1Results = document.getElementById("tab1-results");
+    const policyNote = document.getElementById("policy-note");
+    const assumptionsNoteTab1 = document.getElementById("assumptions-note-tab1");
+    const dataSourcesTab1 = document.getElementById("data-sources-tab1"); 
+    const assumptionsNoteTab3 = document.getElementById("assumptions-note-tab3");
+    const tab3Left = document.getElementById("tab3-left");
+    const oerMoneyResultsContainer = document.getElementById("oerMoneyResultsContainer"); 
+    
+    const btnTab1 = document.getElementById("btn-tab1");
+    const btnTab3 = document.getElementById("btn-tab3"); 
+    const btnMethodology = document.getElementById("btn-methodology");
+    const btnGuide = document.getElementById("btn-guide");
+
+    const activeClasses = ["border-brand-800", "text-brand-800", "font-bold"];
+    const inactiveClasses = ["border-transparent", "text-gray-500", "hover:text-gray-700", "hover:border-gray-300", "font-medium"];
+
+    function switchTab(tabId) {
+      // 1. Hide all page panels
+      calculatorView.style.display = "none";
+      methodologyView.style.display = "none";
+      claimsGuideView.style.display = "none";
+      [tab1Left, tab3Left, oerMoneyResultsContainer, tab1Results, policyNote, assumptionsNoteTab1, dataSourcesTab1, assumptionsNoteTab3].forEach(el => {
+        if(el) el.style.display = "none";
+      });
+      
+      // 2. Reset all button styles
+      [btnTab1, btnTab3, btnMethodology, btnGuide].forEach(btn => {
+        if(btn) {
+          btn.classList.remove(...activeClasses);
+          btn.classList.add(...inactiveClasses);
+        }
+      });
+
+      // 3. Display the active Tab
+      if (tabId === 'tab1') { 
+        calculatorView.style.display = "";  
+        tab1Left.style.display = "block"; 
+        tab1Results.style.display = "block";
+        policyNote.style.display = "block";
+        assumptionsNoteTab1.style.display = "block"; // display assumption
+        dataSourcesTab1.style.display = "block";     // display data source
+        btnTab1.classList.remove(...inactiveClasses); 
+        btnTab1.classList.add(...activeClasses); 
+      } else if (tabId === 'tab3') { 
+        calculatorView.style.display = "";  
+        tab3Left.style.display = "block"; 
+        oerMoneyResultsContainer.style.display = "block"; 
+        assumptionsNoteTab3.style.display = "block";
+        btnTab3.classList.remove(...inactiveClasses); 
+        btnTab3.classList.add(...activeClasses); 
+      } else if (tabId === 'methodology') {
+        methodologyView.style.display = "block";
+        btnMethodology.classList.remove(...inactiveClasses);
+        btnMethodology.classList.add(...activeClasses);
+      } else if (tabId === 'guide') {
+        claimsGuideView.style.display = "block";
+        btnGuide.classList.remove(...inactiveClasses);
+        btnGuide.classList.add(...activeClasses);
+      }
+    }
+
+    function updateInputMode() {
+      if (inputModeEl.value === "budget") {
+        budgetBlock.style.display = "block";
+        quantityBlock.style.display = "none";
+      } else {
+        budgetBlock.style.display = "none";
+        quantityBlock.style.display = "block";
+      }
+    }
+
+    inputModeEl.addEventListener("change", () => {
+      updateInputMode();
+      calculate();
+    });
+
+    updateInputMode();
+
+    document.querySelectorAll("input, select").forEach(input => {
+      input.addEventListener("input", calculate);
+    });
+
+    calculate();
+  </script>
+</body>
+</html>
